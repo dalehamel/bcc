@@ -1,0 +1,27 @@
+From 4f82e3e135df25dfc2c93fc8043ed2634ee167ac Mon Sep 17 00:00:00 2001
+From: Dale Hamel <dale.hamel@shopify.com>
+Date: Sun, 26 Aug 2018 22:01:50 +0000
+Subject: [PATCH 3/5] patch cflags to allow exceptions
+
+---
+ CMakeLists.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f3cdc32..76d5d47 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -91,3 +91,10 @@ add_subdirectory(man)
+ add_subdirectory(tests)
+ add_subdirectory(tools)
+ endif(ENABLE_CLANG_JIT)
++
++
++string(REPLACE "-fno-exceptions" " " stripped_cmake_c_flags ${CMAKE_C_FLAGS})
++string(REPLACE "-fno-exceptions" " " stripped_cmake_cxx_flags ${CMAKE_CXX_FLAGS})
++
++set(CMAKE_C_FLAGS "${stripped_cmake_c_flags}")
++set(CMAKE_CXX_FLAGS "${stripped_cmake_cxx_flags} -Wall ${CXX_ISYSTEM_DIRS}")
+-- 
+2.16.4
+

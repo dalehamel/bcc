@@ -1,0 +1,22 @@
+From 90e71611b6c7bfd6e0b1bb76af1b800c5e3c41b1 Mon Sep 17 00:00:00 2001
+From: Dale Hamel <dale.hamel@shopify.com>
+Date: Sun, 26 Aug 2018 23:21:04 +0000
+Subject: [PATCH 5/5] fix python3 shebang
+
+---
+ tools/inject.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/inject.py b/tools/inject.py
+index 2f7d2f1..031679b 100755
+--- a/tools/inject.py
++++ b/tools/inject.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python3
++#!/usr/bin/env python
+ #
+ # This script generates a BPF program with structure inspired by trace.py. The
+ # generated program operates on PID-indexed stacks. Generally speaking,
+-- 
+2.16.4
+
