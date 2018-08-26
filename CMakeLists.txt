@@ -31,7 +31,7 @@ find_package(LibElf REQUIRED)
 
 # clang is linked as a library, but the library path searching is
 # primitively supported, unlike libLLVM
-set(CLANG_SEARCH "/opt/local/llvm/lib;/usr/lib/llvm-3.7/lib;${LLVM_LIBRARY_DIRS}")
+set(CLANG_SEARCH "/build/lakitu/usr/lib/llvm/6/lib64/;/opt/local/llvm/lib;/usr/lib/llvm-3.7/lib;${LLVM_LIBRARY_DIRS}")
 find_library(libclangAnalysis NAMES clangAnalysis HINTS ${CLANG_SEARCH})
 find_library(libclangAST NAMES clangAST HINTS ${CLANG_SEARCH})
 find_library(libclangBasic NAMES clangBasic HINTS ${CLANG_SEARCH})
