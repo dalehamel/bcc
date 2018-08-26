@@ -91,3 +91,10 @@ add_subdirectory(man)
 add_subdirectory(tests)
 add_subdirectory(tools)
 endif(ENABLE_CLANG_JIT)
+
+
+string(REPLACE "-fno-exceptions" " " stripped_cmake_c_flags ${CMAKE_C_FLAGS})
+string(REPLACE "-fno-exceptions" " " stripped_cmake_cxx_flags ${CMAKE_CXX_FLAGS})
+
+set(CMAKE_C_FLAGS "${stripped_cmake_c_flags}")
+set(CMAKE_CXX_FLAGS "${stripped_cmake_cxx_flags} -Wall ${CXX_ISYSTEM_DIRS}")
