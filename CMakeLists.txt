@@ -47,8 +47,9 @@ find_library(libclangSerialization NAMES clangSerialization HINTS ${CLANG_SEARCH
 if(libclangBasic STREQUAL "libclangBasic-NOTFOUND")
   message(FATAL_ERROR "Unable to find clang libraries")
 endif()
-FOREACH(DIR ${LLVM_INCLUDE_DIRS})
-  include_directories("${DIR}/../tools/clang/include")
+
+FOREACH(DIR "/build/lakitu/usr/lib/llvm/6/include/")
+  include_directories("${DIR}")
 ENDFOREACH()
 
 # Set to a string path if system places kernel lib directory in
