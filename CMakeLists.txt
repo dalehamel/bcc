@@ -80,8 +80,8 @@ set(CMAKE_CXX_STANDARD 11)
 
 endif(NOT PYTHON_ONLY AND ENABLE_CLANG_JIT)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${CXX_ISYSTEM_DIRS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fexceptions")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${CXX_ISYSTEM_DIRS} -fexceptions")
 
 add_subdirectory(src)
 add_subdirectory(introspection)
@@ -91,10 +91,3 @@ add_subdirectory(man)
 add_subdirectory(tests)
 add_subdirectory(tools)
 endif(ENABLE_CLANG_JIT)
-
-
-string(REPLACE "-fno-exceptions" " " stripped_cmake_c_flags ${CMAKE_C_FLAGS})
-string(REPLACE "-fno-exceptions" " " stripped_cmake_cxx_flags ${CMAKE_CXX_FLAGS})
-
-set(CMAKE_C_FLAGS "${stripped_cmake_c_flags}")
-set(CMAKE_CXX_FLAGS "${stripped_cmake_cxx_flags} -Wall ${CXX_ISYSTEM_DIRS}")
