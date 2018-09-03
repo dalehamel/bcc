@@ -1,9 +1,9 @@
-FROM ubuntu:xenial
+FROM ubuntu:18.04
 
 MAINTAINER Brenden Blanco <bblanco@gmail.com>
 
 RUN apt-get -qq update && \
-    apt-get -y install pbuilder aptitude
+    apt-get -y install pbuilder aptitude python python3 python-dev python3-dev
 
 COPY ./ /root/bcc
 
