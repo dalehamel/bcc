@@ -1,13 +1,13 @@
 containers:
-  stretch:
-    docker: debian:stretch-backports
+  xenial:
+    docker: ubuntu:16.04
   packagecloud:
     docker: gcr.io/shopify-docker-images/ci-branches/ci/packagecloud:97c5a43ff3b5dc0658d8618afcbc91a694365477
 
 steps:
 - label: Build debs
   timeout: 60m
-  container: stretch
+  container: xenial
   run:
   - sed -i 's/main/main non-free/g' /etc/apt/sources.list
   - rm -rf /var/lib/apt/lists/*
@@ -29,7 +29,7 @@ steps:
   container: packagecloud
   run:
   - ls -l debs
-  - FLAVOUR=debian publish_debs debs stretch shopify/public
+  - FLAVOUR=ubuntu publish_debs debs xenial shopify/public
   import_artifacts:
   - pattern: '*.deb'
     into: debs
