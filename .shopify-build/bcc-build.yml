@@ -8,6 +8,8 @@ steps:
 - label: Build debs
   timeout: 60m
   container: xenial
+  git:
+    history: true
   run:
   - apt-get -qq update
   - apt-get -y install pbuilder aptitude
