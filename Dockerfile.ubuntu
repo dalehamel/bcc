@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu:eoan
 
 MAINTAINER Brenden Blanco <bblanco@gmail.com>
 
