@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # xdp_macswap_count.py Swap Source and Destination MAC addresses on
 #                      incoming packets and transmit packets back on
@@ -141,7 +141,7 @@ int xdp_prog1(struct CTXTYPE *ctx) {
     else
         index = 0;
 
-    if (h_proto == IPPROTO_UDP) {
+    if (index == IPPROTO_UDP) {
         swap_src_dst_mac(data);
         rc = XDP_TX;
     }
