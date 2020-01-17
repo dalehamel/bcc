@@ -949,7 +949,7 @@ static int create_probe_event(char *buf, const char *ev_name,
                               const char *config1, uint64_t offset,
                               const char *event_type, pid_t pid, int maxactive)
 {
-  int kfd = -1, res = -1, ns_fd = -1;
+  int kfd = -1, res = -1;
   char ev_alias[256];
   bool is_kprobe = strncmp("kprobe", event_type, 6) == 0;
 
@@ -987,7 +987,6 @@ static int create_probe_event(char *buf, const char *ev_name,
       close(kfd);
       return -1;
     }
-    ns_fd = enter_mount_ns(pid);
   }
 
   if (write(kfd, buf, strlen(buf)) < 0) {
@@ -999,14 +998,10 @@ static int create_probe_event(char *buf, const char *ev_name,
     goto error;
   }
   close(kfd);
-  if (!is_kprobe)
-    exit_mount_ns(ns_fd);
   snprintf(buf, PATH_MAX, "/sys/kernel/debug/tracing/events/%ss/%s",
            event_type, ev_alias);
   return 0;
 error:
-  if (!is_kprobe)
-    exit_mount_ns(ns_fd);
   return -1;
 }
 
