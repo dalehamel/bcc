@@ -187,9 +187,10 @@ static int probe_num_arguments(const char *bin_path, const char *func_name) {
 static int unshared_child_pid(const int ppid) {
   int child_pid;
   char cmd[512];
-  const char *cmdfmt = "grep 'PPid:\\s*%d' /proc/*/status | awk -F/ '{print $3}'";
+  const char *cmdfmt = "pgrep -P %d";
 
   sprintf(cmd, cmdfmt, ppid);
+  printf("CMD %s", cmd);
   if (cmd_scanf(cmd, "%d", &child_pid) != 0) {
     return -1;
   }
@@ -349,6 +350,7 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
     ChildProcess unshare(argv[0], argv);
     if (!unshare.spawned())
       return;
+
     int ruby_pid = unshared_child_pid(unshare.pid());
 
     ebpf::BPF bpf;
