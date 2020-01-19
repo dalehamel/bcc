@@ -14,8 +14,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build docker container
       run: |
-        docker build -t bcc-docker -f docker/Dockerfile.tests .
+        docker build -t bcc-docker -f Dockerfile.tests .
     - name: Run bcc build
       env: ${{ matrix.env }}
       run: |
-        docker run --privileged -v ${PWD}:${PWD} -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e RUN_TESTS=1 bcc-docker ${PWD}/build-${TYPE} ${TYPE} -j9
+        docker run --privileged --pid=host -v ${PWD}:${PWD} -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e RUN_TESTS=1 bcc-docker ${PWD}/build-${TYPE} ${TYPE} -j9
