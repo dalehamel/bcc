@@ -184,6 +184,18 @@ static int probe_num_arguments(const char *bin_path, const char *func_name) {
   return num_arguments;
 }
 
+static int unshared_child_pid(const int ppid) {
+  int child_pid;
+  char cmd[512];
+  const char *cmdfmt = "grep 'PPid:\\s*%d' /proc/*/status | awk -F/ '{print $3}'";
+
+  sprintf(cmd, cmdfmt, ppid);
+  if (cmd_scanf(cmd, "%d", &child_pid) != 0) {
+    return -1;
+  }
+  return child_pid;
+}
+
 TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt]") {
   size_t mri_probe_count = 0;
 
@@ -297,15 +309,14 @@ TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt]") {
 TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
   SECTION("in separate mount namespace") {
     static char _unshare[] = "unshare";
-    char *const argv[3] = {_unshare, "--mount", "/usr/local/bin/ruby"};
+    char *const argv[4] = {_unshare, "--mount", "ruby", NULL};
 
-    ChildProcess ruby(argv[0], argv);
-    if (!ruby.spawned())
+    ChildProcess unshare(argv[0], argv);
+    if (!unshare.spawned())
       return;
 
-    USDT::Context ctx(ruby.pid());
-    printf("Ruby pid %d has %d", ruby.pid(), ctx.num_probes());
-    //sleep(30);
+    USDT::Context ctx(unshare.pid());
+
     REQUIRE(ctx.num_probes() > 10);
 
     auto name = "gc__mark__begin";
@@ -331,34 +342,26 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
 
   SECTION("in separate mount namespace and separate PID namespace") {
     static char _unshare[] = "unshare";
-    char *const argv[6] = {_unshare, "--fork",       "--mount",
-                           "--pid",  "--mount-proc", "/usr/local/bin/ruby"};
+    char *const argv[7] = {_unshare, "--fork",       "--mount",
+                           "--pid",  "--mount-proc", "ruby",
+                           NULL};
 
-    ChildProcess ruby(argv[0], argv);
-    if (!ruby.spawned())
+    ChildProcess unshare(argv[0], argv);
+    if (!unshare.spawned())
       return;
+    int ruby_pid = unshared_child_pid(unshare.pid());
 
-    USDT::Context ctx(ruby.pid());
-    REQUIRE(ctx.num_probes() > 10);
+    ebpf::BPF bpf;
+    ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
 
-    auto name = "gc__mark__begin";
-    auto probe = ctx.get(name);
-    REQUIRE(probe);
+    auto res = bpf.init("int on_event() { return 0; }", {}, {u});
+    REQUIRE(res.msg() == "");
+    REQUIRE(res.code() == 0);
 
-    REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
-    REQUIRE(probe->name() == name);
-    REQUIRE(probe->provider() == "ruby");
+    res = bpf.attach_usdt(u);
+    REQUIRE(res.code() == 0);
 
-    auto bin_path = probe->bin_path();
-    bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
-                          (bin_path.find("/libruby") != std::string::npos);
-    REQUIRE(bin_path_match);
-
-    int exp_locations, exp_arguments;
-    exp_locations = probe_num_locations(bin_path.c_str(), name);
-    exp_arguments = probe_num_arguments(bin_path.c_str(), name);
-    REQUIRE(probe->num_locations() == exp_locations);
-    REQUIRE(probe->num_arguments() == exp_arguments);
-    REQUIRE(probe->need_enable() == true);
+    res = bpf.detach_usdt(u);
+    REQUIRE(res.code() == 0);
   }
 }
