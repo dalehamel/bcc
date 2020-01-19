@@ -40,10 +40,15 @@ RUN apt-get update && apt-get install -y \
       systemtap-sdt-dev \
       python3
 
-RUN wget -O ruby-install-0.7.0.tar.gz \
-         https://github.com/postmodern/ruby-install/archive/v0.7.0.tar.gz && \
-    tar -xzvf ruby-install-0.7.0.tar.gz && \
-    cd ruby-install-0.7.0/ && \
-    make install
+RUN apt-get update -qq && \
+    apt-get install -y software-properties-common && \
+    apt-add-repository ppa:brightbox/ruby-ng && \
+    apt-get update -qq && apt-get install -y ruby2.6 ruby2.6-dev
 
-RUN ruby-install --system ruby 2.6.0 -- --enable-dtrace
+# RUN wget -O ruby-install-0.7.0.tar.gz \
+#          https://github.com/postmodern/ruby-install/archive/v0.7.0.tar.gz && \
+#     tar -xzvf ruby-install-0.7.0.tar.gz && \
+#     cd ruby-install-0.7.0/ && \
+#     make install
+# 
+# RUN ruby-install --system ruby 2.6.0 -- --enable-dtrace
