@@ -292,71 +292,73 @@ TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt]") {
       REQUIRE(probe->need_enable() == true);
     }
   }
+}
 
-  SECTION("with a running Ruby process in a namespaces") {
-    SECTION("in separate mount namespace") {
-      static char _unshare[] = "unshare";
-      char *const argv[3] = {_unshare, "--mount", "ruby"};
+TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
+  SECTION("in separate mount namespace") {
+    static char _unshare[] = "unshare";
+    char *const argv[3] = {_unshare, "--mount", "/usr/local/bin/ruby"};
 
-      ChildProcess ruby(argv[0], argv);
-      if (!ruby.spawned())
-        return;
+    ChildProcess ruby(argv[0], argv);
+    if (!ruby.spawned())
+      return;
 
-      USDT::Context ctx(ruby.pid());
-      REQUIRE(ctx.num_probes() > 10);
+    USDT::Context ctx(ruby.pid());
+    printf("Ruby pid %d has %d", ruby.pid(), ctx.num_probes());
+    //sleep(30);
+    REQUIRE(ctx.num_probes() > 10);
 
-      auto name = "gc__mark__begin";
-      auto probe = ctx.get(name);
-      REQUIRE(probe);
+    auto name = "gc__mark__begin";
+    auto probe = ctx.get(name);
+    REQUIRE(probe);
 
-      REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
-      REQUIRE(probe->name() == name);
-      REQUIRE(probe->provider() == "ruby");
+    REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
+    REQUIRE(probe->name() == name);
+    REQUIRE(probe->provider() == "ruby");
 
-      auto bin_path = probe->bin_path();
-      bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
-                            (bin_path.find("/libruby") != std::string::npos);
-      REQUIRE(bin_path_match);
+    auto bin_path = probe->bin_path();
+    bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
+                          (bin_path.find("/libruby") != std::string::npos);
+    REQUIRE(bin_path_match);
 
-      int exp_locations, exp_arguments;
-      exp_locations = probe_num_locations(bin_path.c_str(), name);
-      exp_arguments = probe_num_arguments(bin_path.c_str(), name);
-      REQUIRE(probe->num_locations() == exp_locations);
-      REQUIRE(probe->num_arguments() == exp_arguments);
-      REQUIRE(probe->need_enable() == true);
-    }
+    int exp_locations, exp_arguments;
+    exp_locations = probe_num_locations(bin_path.c_str(), name);
+    exp_arguments = probe_num_arguments(bin_path.c_str(), name);
+    REQUIRE(probe->num_locations() == exp_locations);
+    REQUIRE(probe->num_arguments() == exp_arguments);
+    REQUIRE(probe->need_enable() == true);
+  }
 
-    SECTION("in separate mount namespace and separate PID namespace") {
-      static char _unshare[] = "unshare";
-      char *const argv[6] = {_unshare, "--fork",       "--mount",
-                             "--pid",  "--mount-proc", "ruby"};
+  SECTION("in separate mount namespace and separate PID namespace") {
+    static char _unshare[] = "unshare";
+    char *const argv[6] = {_unshare, "--fork",       "--mount",
+                           "--pid",  "--mount-proc", "/usr/local/bin/ruby"};
 
-      ChildProcess ruby(argv[0], argv);
-      if (!ruby.spawned())
-        return;
+    ChildProcess ruby(argv[0], argv);
+    if (!ruby.spawned())
+      return;
 
-      USDT::Context ctx(ruby.pid());
-      REQUIRE(ctx.num_probes() > 10);
+    USDT::Context ctx(ruby.pid());
+    REQUIRE(ctx.num_probes() > 10);
 
-      auto name = "gc__mark__begin";
-      auto probe = ctx.get(name);
-      REQUIRE(probe);
+    auto name = "gc__mark__begin";
+    auto probe = ctx.get(name);
+    REQUIRE(probe);
 
-      REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
-      REQUIRE(probe->name() == name);
-      REQUIRE(probe->provider() == "ruby");
+    REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
+    REQUIRE(probe->name() == name);
+    REQUIRE(probe->provider() == "ruby");
 
-      auto bin_path = probe->bin_path();
-      bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
-                            (bin_path.find("/libruby") != std::string::npos);
-      REQUIRE(bin_path_match);
+    auto bin_path = probe->bin_path();
+    bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
+                          (bin_path.find("/libruby") != std::string::npos);
+    REQUIRE(bin_path_match);
 
-      int exp_locations, exp_arguments;
-      exp_locations = probe_num_locations(bin_path.c_str(), name);
-      exp_arguments = probe_num_arguments(bin_path.c_str(), name);
-      REQUIRE(probe->num_locations() == exp_locations);
-      REQUIRE(probe->num_arguments() == exp_arguments);
-      REQUIRE(probe->need_enable() == true);
-    }
+    int exp_locations, exp_arguments;
+    exp_locations = probe_num_locations(bin_path.c_str(), name);
+    exp_arguments = probe_num_arguments(bin_path.c_str(), name);
+    REQUIRE(probe->num_locations() == exp_locations);
+    REQUIRE(probe->num_arguments() == exp_arguments);
+    REQUIRE(probe->need_enable() == true);
   }
 }
