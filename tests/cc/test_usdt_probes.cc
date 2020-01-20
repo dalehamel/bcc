@@ -190,7 +190,9 @@ static int unshared_child_pid(const int ppid) {
   const char *cmdfmt = "pgrep -P %d";
 
   sprintf(cmd, cmdfmt, ppid);
+  printf("Command %s\n", cmd);
   if (cmd_scanf(cmd, "%d", &child_pid) != 0) {
+    printf("Command %s\n FAILED", cmd);
     return -1;
   }
 
