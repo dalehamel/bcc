@@ -314,14 +314,14 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
     static char _unshare[] = "unshare";
     const char *const argv[4] = {_unshare, "--mount", "ruby", NULL};
 
-    ChildProcess unshare(argv[0], (char* *const) argv);
+    ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
     int ruby_pid = unshare.pid();
 
     ebpf::BPF bpf;
     ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
-    u.set_probe_matching_kludge(1); // Also required for overlayfs...
+    u.set_probe_matching_kludge(1);  // Also required for overlayfs...
 
     auto res = bpf.init("int on_event() { return 0; }", {}, {u});
     REQUIRE(res.msg() == "");
@@ -336,18 +336,17 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
 
   SECTION("in separate mount namespace and separate PID namespace") {
     static char _unshare[] = "unshare";
-    const char *const argv[7] = {_unshare, "--fork",       "--mount",
-                           "--pid",  "--mount-proc", "ruby",
-                           NULL};
+    const char *const argv[7] = {_unshare,       "--fork", "--mount", "--pid",
+                                 "--mount-proc", "ruby",   NULL};
 
-    ChildProcess unshare(argv[0], (char* *const) argv);
+    ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
     int ruby_pid = unshared_child_pid(unshare.pid());
 
     ebpf::BPF bpf;
     ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
-    u.set_probe_matching_kludge(1); // Also required for overlayfs...
+    u.set_probe_matching_kludge(1);  // Also required for overlayfs...
 
     auto res = bpf.init("int on_event() { return 0; }", {}, {u});
     REQUIRE(res.msg() == "");
