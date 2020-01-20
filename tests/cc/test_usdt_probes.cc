@@ -318,29 +318,23 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
     if (!unshare.spawned())
       return;
 
-    USDT::Context ctx(unshare.pid());
+    int ruby_pid = unshare.pid();
 
-    REQUIRE(ctx.num_probes() > 10);
+    printf("GOT PID %d\n", ruby_pid);
 
-    auto name = "gc__mark__begin";
-    auto probe = ctx.get(name);
-    REQUIRE(probe);
+    ebpf::BPF bpf;
+    ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
+    u.set_probe_matching_kludge(1); // Also required for overlayfs...
 
-    REQUIRE(probe->in_shared_object(probe->bin_path()) == true);
-    REQUIRE(probe->name() == name);
-    REQUIRE(probe->provider() == "ruby");
+    auto res = bpf.init("int on_event() { return 0; }", {}, {u});
+    REQUIRE(res.msg() == "");
+    REQUIRE(res.code() == 0);
 
-    auto bin_path = probe->bin_path();
-    bool bin_path_match = (bin_path.find("/ruby") != std::string::npos) ||
-                          (bin_path.find("/libruby") != std::string::npos);
-    REQUIRE(bin_path_match);
+    res = bpf.attach_usdt(u, ruby_pid);
+    REQUIRE(res.code() == 0);
 
-    int exp_locations, exp_arguments;
-    exp_locations = probe_num_locations(bin_path.c_str(), name);
-    exp_arguments = probe_num_arguments(bin_path.c_str(), name);
-    REQUIRE(probe->num_locations() == exp_locations);
-    REQUIRE(probe->num_arguments() == exp_arguments);
-    REQUIRE(probe->need_enable() == true);
+    res = bpf.detach_usdt(u, ruby_pid);
+    REQUIRE(res.code() == 0);
   }
 
   SECTION("in separate mount namespace and separate PID namespace") {
@@ -354,6 +348,8 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
       return;
 
     int ruby_pid = unshared_child_pid(unshare.pid());
+
+    printf("GOT PID %d\n", ruby_pid);
 
     ebpf::BPF bpf;
     ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
