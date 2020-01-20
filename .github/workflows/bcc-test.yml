@@ -22,13 +22,8 @@ jobs:
     - name: Run bcc build
       env: ${{ matrix.env }}
       run: |
-        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bin/bash -c "mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_RELEASE_TYPE=${TYPE} .. && make -j9"
-    - name: Pstree
-      run: |
-        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker ps -auxf
+        docker run -ti --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bin/bash -c "mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_RELEASE_TYPE=${TYPE} .. && make -j9"
     - name: Run bcc tests
       env: ${{ matrix.env }}
       run: |
-        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bcc/build/tests/cc/test_libbcc || true
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v1
+        docker run -ti --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bcc/build/tests/cc/test_libbcc || true
