@@ -13,6 +13,9 @@ jobs:
         - TYPE: Release
     steps:
     - uses: actions/checkout@v2
+    - name: System info
+      run: |
+        uname -a
     - name: Build docker container
       run: |
         docker build -t bcc-docker -f Dockerfile.tests .
@@ -20,6 +23,9 @@ jobs:
       env: ${{ matrix.env }}
       run: |
         docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bin/bash -c "mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_RELEASE_TYPE=${TYPE} .. && make -j9"
+    - name: Pstree
+      run: |
+        ps -auxf
     - name: Run bcc tests
       env: ${{ matrix.env }}
       run: |
