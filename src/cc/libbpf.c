@@ -879,68 +879,6 @@ static int bpf_attach_tracing_event(int progfd, const char *event_path, int pid,
   return 0;
 }
 
-static int enter_mount_ns(int pid) {
-  struct stat self_stat, target_stat;
-  int self_fd = -1, target_fd = -1;
-  char buf[64];
-
-  if (pid < 0)
-    return -1;
-
-  if ((size_t)snprintf(buf, sizeof(buf), "/proc/%d/ns/mnt", pid) >= sizeof(buf))
-    return -1;
-
-  self_fd = open("/proc/self/ns/mnt", O_RDONLY);
-  if (self_fd < 0) {
-    perror("open(/proc/self/ns/mnt)");
-    return -1;
-  }
-
-  target_fd = open(buf, O_RDONLY);
-  if (target_fd < 0) {
-    perror("open(/proc/<pid>/ns/mnt)");
-    goto error;
-  }
-
-  if (fstat(self_fd, &self_stat)) {
-    perror("fstat(self_fd)");
-    goto error;
-  }
-
-  if (fstat(target_fd, &target_stat)) {
-    perror("fstat(target_fd)");
-    goto error;
-  }
-
-  // both target and current ns are same, avoid setns and close all fds
-  if (self_stat.st_ino == target_stat.st_ino)
-    goto error;
-
-  if (setns(target_fd, CLONE_NEWNS)) {
-    perror("setns(target)");
-    goto error;
-  }
-
-  close(target_fd);
-  return self_fd;
-
-error:
-  if (self_fd >= 0)
-    close(self_fd);
-  if (target_fd >= 0)
-    close(target_fd);
-  return -1;
-}
-
-static void exit_mount_ns(int fd) {
-  if (fd < 0)
-    return;
-
-  if (setns(fd, CLONE_NEWNS))
-    perror("setns");
-  close(fd);
-}
-
 /* Creates an [uk]probe using debugfs.
  * On success, the path to the probe is placed in buf (which is assumed to be of size PATH_MAX).
  */
