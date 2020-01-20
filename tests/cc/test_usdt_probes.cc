@@ -339,6 +339,10 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
     const char *const argv[7] = {_unshare,       "--fork", "--mount", "--pid",
                                  "--mount-proc", "ruby",   NULL};
 
+    char rubypath[100];
+    cmd_scanf("which ruby", "%s", rubypath);
+    printf("Ruby path is %s\n", rubypath);
+
     ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
