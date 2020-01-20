@@ -312,9 +312,9 @@ TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt]") {
 TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
   SECTION("in separate mount namespace") {
     static char _unshare[] = "unshare";
-    char *const argv[4] = {_unshare, "--mount", "ruby", NULL};
+    const char *const argv[4] = {_unshare, "--mount", "ruby", NULL};
 
-    ChildProcess unshare(argv[0], argv);
+    ChildProcess unshare(argv[0], (char* *const) argv);
     if (!unshare.spawned())
       return;
     int ruby_pid = unshare.pid();
@@ -336,11 +336,11 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
 
   SECTION("in separate mount namespace and separate PID namespace") {
     static char _unshare[] = "unshare";
-    char *const argv[7] = {_unshare, "--fork",       "--mount",
+    const char *const argv[7] = {_unshare, "--fork",       "--mount",
                            "--pid",  "--mount-proc", "ruby",
                            NULL};
 
-    ChildProcess unshare(argv[0], argv);
+    ChildProcess unshare(argv[0], (char* *const) argv);
     if (!unshare.spawned())
       return;
     int ruby_pid = unshared_child_pid(unshare.pid());
