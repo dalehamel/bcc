@@ -1015,8 +1015,6 @@ static int bpf_attach_probe(int progfd, enum bpf_probe_attach_type attach_type,
   char buf[PATH_MAX], fname[256];
   bool is_kprobe = strncmp("kprobe", event_type, 6) == 0;
 
-  printf("TRYING TO ATTACH %s\n", config1);
-
   if (maxactive <= 0)
     // Try create the [k,u]probe Perf Event with perf_event_open API.
     pfd = bpf_try_perf_event_open_with_probe(config1, offset, pid, event_type,
@@ -1026,7 +1024,6 @@ static int bpf_attach_probe(int progfd, enum bpf_probe_attach_type attach_type,
   // (e12f03d "perf/core: Implement the 'perf_kprobe' PMU") yet.
   // Try create the event using debugfs.
   if (pfd < 0) {
-  //  printf("TRYING THE OLD WAY\n");
     if (create_probe_event(buf, ev_name, attach_type, config1, offset,
                            event_type, pid, maxactive) < 0)
       goto error;

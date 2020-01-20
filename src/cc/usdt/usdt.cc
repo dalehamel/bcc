@@ -74,7 +74,6 @@ bool Probe::in_shared_object(const std::string &bin_path) {
 bool Probe::resolve_global_address(uint64_t *global, const std::string &bin_path,
                                    const uint64_t addr) {
   if (in_shared_object(bin_path)) {
-    printf("IN SHARED OBJECT\n");
     return (pid_ &&
             !bcc_resolve_global_addr(*pid_, bin_path.c_str(), addr, mod_match_inode_only_, global));
   }
@@ -87,14 +86,11 @@ bool Probe::add_to_semaphore(int16_t val) {
   assert(pid_);
 
   if (!attached_semaphore_) {
-    printf("NOT ATTACHED %s\n", bin_path_.c_str());
     uint64_t addr;
     if (!resolve_global_address(&addr, bin_path_, semaphore_))
       return false;
     attached_semaphore_ = addr;
   }
-
-  printf("RESOLVED ADDR\n");
 
   off_t address = static_cast<off_t>(attached_semaphore_.value());
 
@@ -103,7 +99,6 @@ bool Probe::add_to_semaphore(int16_t val) {
   if (memfd < 0)
     return false;
 
-  printf("OPENED MEM\n");
   int16_t original;
 
   if (::lseek(memfd, address, SEEK_SET) < 0 ||
@@ -111,7 +106,6 @@ bool Probe::add_to_semaphore(int16_t val) {
     ::close(memfd);
     return false;
   }
-  printf("SEEKED MEM\n");
 
   original = original + val;
 
@@ -120,7 +114,6 @@ bool Probe::add_to_semaphore(int16_t val) {
     ::close(memfd);
     return false;
   }
-  printf("WROTE MEM\n");
 
   ::close(memfd);
   return true;
@@ -130,16 +123,12 @@ bool Probe::enable(const std::string &fn_name) {
   if (attached_to_)
     return false;
 
-  printf("NOT ATTACHED\n");
   if (need_enable()) {
-    printf("NEED ENABLE\n");
     if (!pid_)
       return false;
 
-    printf("PID EXISTS\n");
     if (!add_to_semaphore(+1))
       return false;
-    printf("ADDED TO SEM\n");
   }
 
   attached_to_ = fn_name;

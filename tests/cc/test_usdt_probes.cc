@@ -355,6 +355,7 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
 
     ebpf::BPF bpf;
     ebpf::USDT u(ruby_pid, "ruby", "gc__mark__begin", "on_event");
+    u.set_probe_matching_kludge(1); // Also required for overlayfs...
 
     auto res = bpf.init("int on_event() { return 0; }", {}, {u});
     REQUIRE(res.msg() == "");
