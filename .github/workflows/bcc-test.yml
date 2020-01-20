@@ -30,3 +30,5 @@ jobs:
       env: ${{ matrix.env }}
       run: |
         docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bcc/build/tests/cc/test_libbcc || true
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v1
