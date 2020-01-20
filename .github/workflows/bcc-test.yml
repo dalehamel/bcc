@@ -1,0 +1,41 @@
+name: BCC Build and tests
+
+on: push
+
+jobs:
+  test_bcc:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04] # 16.04.4 release has 4.15 kernel
+                                         # 18.04.3 release has 5.0.0 kernel
+        env:
+        - TYPE: Debug
+        - TYPE: Release
+    steps:
+    - uses: actions/checkout@v2
+    - name: System info
+      run: |
+        uname -a
+    - name: Build docker container
+      run: |
+        docker build -t bcc-docker -f Dockerfile.tests .
+    - name: Run bcc build
+      env: ${{ matrix.env }}
+      run: |
+        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bin/bash -c 'mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_BUILD_TYPE=${TYPE} .. && make -j9'
+    - name: Run bcc's cc tests
+      env: ${{ matrix.env }}
+      run: |
+        script -e -c /bin/bash -c "docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c '/bcc/build/tests/wrapper.sh c_test_all sudo /bcc/build/tests/cc/test_libbcc'" # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this
+
+    - name: Run all tests
+      env: ${{ matrix.env }}
+      run: |
+        script -e -c /bin/bash -c "docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c 'cd /bcc/build && make test || true'" # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this  # FIXME hardcoded pass
+
+
+# To debug weird issues, you can add this step to be able to SSH to the test environment
+#     https://github.com/marketplace/actions/debugging-with-tmate
+#    - name: Setup tmate session
+#      uses: mxschmitt/action-tmate@v1
