@@ -26,6 +26,7 @@ jobs:
     - name: Pstree
       run: |
         ps -auxf
+        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker ps -auxf
     - name: Run bcc tests
       env: ${{ matrix.env }}
       run: |
