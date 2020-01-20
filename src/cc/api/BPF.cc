@@ -259,9 +259,11 @@ StatusTuple BPF::attach_usdt(const USDT& usdt, pid_t pid) {
   for (const auto& u : usdt_) {
     if (u == usdt) {
       auto& probe = *static_cast<::USDT::Probe*>(u.probe_.get());
+      printf("Probe %s\n", u.print_name().c_str());
       if (!probe.enable(u.probe_func_))
         return StatusTuple(-1, "Unable to enable USDT " + u.print_name());
 
+      printf("GOT HERE\n");
       bool failed = false;
       std::string err_msg;
       int cnt = 0;

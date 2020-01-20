@@ -190,10 +190,10 @@ static int unshared_child_pid(const int ppid) {
   const char *cmdfmt = "pgrep -P %d";
 
   sprintf(cmd, cmdfmt, ppid);
-  printf("CMD %s", cmd);
   if (cmd_scanf(cmd, "%d", &child_pid) != 0) {
     return -1;
   }
+
   return child_pid;
 }
 
@@ -360,10 +360,10 @@ TEST_CASE("test probing running Ruby process in namespaces", "[usdt]") {
     REQUIRE(res.msg() == "");
     REQUIRE(res.code() == 0);
 
-    res = bpf.attach_usdt(u);
+    res = bpf.attach_usdt(u, ruby_pid);
     REQUIRE(res.code() == 0);
 
-    res = bpf.detach_usdt(u);
+    res = bpf.detach_usdt(u, ruby_pid);
     REQUIRE(res.code() == 0);
   }
 }
