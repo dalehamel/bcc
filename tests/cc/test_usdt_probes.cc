@@ -199,7 +199,7 @@ static int unshared_child_pid(const int ppid) {
   return child_pid;
 }
 
-TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt]") {
+TEST_CASE("test listing all USDT probes in Ruby/MRI", "[usdt][!mayfail]") {
   size_t mri_probe_count = 0;
 
   SECTION("without a running Ruby process") {
