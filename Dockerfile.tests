@@ -45,7 +45,9 @@ RUN apt-get update && apt-get install -y \
       python-pip \
       ethtool \
       iputils-ping \
-      bridge-utils
+      bridge-utils \
+      libtinfo5 \
+      libtinfo-dev
 
 RUN pip3 install pyroute2 netaddr
 RUN pip install pyroute2 netaddr
