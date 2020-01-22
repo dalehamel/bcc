@@ -225,7 +225,7 @@ TEST_CASE("test bpf stack table", "[bpf_stack_table]") {
 #endif
 }
 
-TEST_CASE("test bpf stack_id table", "[bpf_stack_table]") {
+TEST_CASE("test bpf stack_id table", "[bpf_stack_table][!mayfail]") {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
   const std::string BPF_PROGRAM = R"(
     BPF_HASH(id, int, int, 1);
