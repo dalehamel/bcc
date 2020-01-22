@@ -26,15 +26,17 @@ jobs:
         docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro bcc-docker /bin/bash -c 'mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_BUILD_TYPE=${TYPE} .. && make -j9'
     - name: Run bcc's cc tests
       env: ${{ matrix.env }}
+      shell: script -e -c /bin/bash -c {0}
       run: |
         LINUX_VERSION_CODE=$(($(uname -r | cut -d. -f1)*65536 + $(uname -r | cut -d. -f2) * 256 + $(uname -r | cut -d. -f3)))
-        script -e -c /bin/bash -c "docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e BCC_LINUX_VERSION_CODE=${LINUX_VERSION_CODE} -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c '/bcc/build/tests/wrapper.sh c_test_all sudo /bcc/build/tests/cc/test_libbcc'" # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this
+        docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e BCC_LINUX_VERSION_CODE=${LINUX_VERSION_CODE} -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c '/bcc/build/tests/wrapper.sh c_test_all sudo /bcc/build/tests/cc/test_libbcc' # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this
 
     - name: Run all tests
       env: ${{ matrix.env }}
+      shell: script -e -c /bin/bash -c {0}
       run: |
         LINUX_VERSION_CODE=$(($(uname -r | cut -d. -f1)*65536 + $(uname -r | cut -d. -f2) * 256 + $(uname -r | cut -d. -f3)))
-        script -e -c /bin/bash -c "docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e BCC_LINUX_VERSION_CODE=${LINUX_VERSION_CODE} -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c 'cd /bcc/build && make test || true'" # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this  # FIXME hardcoded pass
+        docker run -ti --privileged --network=host --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -e BCC_LINUX_VERSION_CODE=${LINUX_VERSION_CODE} -e CTEST_OUTPUT_ON_FAILURE=1 bcc-docker /bin/bash -c 'cd /bcc/build && make test || true' # tests are wrapped with `script` as a hack to get a TTY as github actions doesn't provide this  # FIXME hardcoded pass
 
 
 # To debug weird issues, you can add this step to be able to SSH to the test environment
