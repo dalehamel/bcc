@@ -340,8 +340,9 @@ TEST_CASE("test probing running Ruby process in namespaces",
 
   SECTION("in separate mount namespace and separate PID namespace") {
     static char _unshare[] = "unshare";
-    const char *const argv[7] = {_unshare,       "--fork", "--mount", "--pid",
-                                 "--mount-proc", "ruby",   NULL};
+    const char *const argv[7] = {_unshare,  "--fork", "--kill-child",
+                                 "--mount", "--pid",  "--mount-proc",
+                                 "ruby",    NULL};
 
     ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
