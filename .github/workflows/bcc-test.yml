@@ -17,9 +17,6 @@ jobs:
     - name: System info
       run: |
         uname -a
-    - name: Install host kernel headers
-      run: |
-        sudo apt-get update && sudo apt install -y linux-headers-$(uname -r)
     - name: Build docker container
       run: |
         docker build -t bcc-docker -f Dockerfile.tests .
