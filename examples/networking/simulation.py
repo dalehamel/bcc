@@ -68,7 +68,10 @@ class Simulation(object):
                 raise
 
         if out_ifc: out_ifc.up().commit()
-        ns_ipdb.interfaces.lo.up().commit()
+        try:
+            ns_ipdb.interfaces.lo.up().commit()
+        except CommitException:
+            print("Warning, commit for lo failed, operstate may be unknown")
         ns_ipdb.initdb()
         in_ifc = ns_ipdb.interfaces[in_ifname]
         with in_ifc as v:
