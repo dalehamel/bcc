@@ -40,7 +40,10 @@ class Simulation(object):
                        "net.ipv6.conf.default.disable_ipv6=1"]
                 nsp = NSPopen(ns_ipdb.nl.netns, cmd1)
                 nsp.wait(); nsp.release()
-            ns_ipdb.interfaces.lo.up().commit()
+            try:
+                ns_ipdb.interfaces.lo.up().commit()
+            except CommitException:
+                print("Warning, commit for lo failed, operstate may be unknown")
         if in_ifc:
             in_ifname = in_ifc.ifname
             with in_ifc as v:
