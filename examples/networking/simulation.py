@@ -72,7 +72,7 @@ class Simulation(object):
             ns_ipdb.interfaces.lo.up().commit()
         except pyroute2.ipdb.exceptions.CommitException:
             print("Warning, commit for lo failed, operstate may be unknown")
-        ns_ipdb.initdb()
+        #ns_ipdb.initdb()
         in_ifc = ns_ipdb.interfaces[in_ifname]
         with in_ifc as v:
             v.ifname = ns_ifc
