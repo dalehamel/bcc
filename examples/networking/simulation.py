@@ -72,13 +72,17 @@ class Simulation(object):
             ns_ipdb.interfaces.lo.up().commit()
         except pyroute2.ipdb.exceptions.CommitException:
             print("Warning, commit for lo failed, operstate may be unknown")
-        #ns_ipdb.initdb()
+        ns_ipdb.initdb()
+        print("HERE")
         in_ifc = ns_ipdb.interfaces[in_ifname]
         with in_ifc as v:
+            print("HERE")
             v.ifname = ns_ifc
+            print("HERE")
             if ipaddr: v.add_ip("%s" % ipaddr)
             if macaddr: v.address = macaddr
             v.up()
+            print("HERE")
         if disable_ipv6:
             cmd1 = ["sysctl", "-q", "-w",
                    "net.ipv6.conf.%s.disable_ipv6=1" % out_ifc.ifname]
