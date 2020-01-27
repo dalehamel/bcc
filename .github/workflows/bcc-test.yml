@@ -24,7 +24,7 @@ jobs:
     - name: Run bcc build
       env: ${{ matrix.env }}
       run: |
-        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro  bcc-docker /bin/bash -c 'cp /usr/src/linux/include/generated/uapi/linux/version.h /usr/include/linux/version.h && mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_BUILD_TYPE=${TYPE} .. && make -j9'
+        docker run --privileged --pid=host -v $(pwd):/bcc -v /sys/kernel/debug:/sys/kernel/debug:rw -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /usr/include/linux:/usr/include/linux:ro  bcc-docker /bin/bash -c 'mkdir -p /bcc/build && cd /bcc/build && cmake -DCMAKE_BUILD_TYPE=${TYPE} .. && make -j9'
     - name: Run bcc's cc tests
       env: ${{ matrix.env }}
       run: |
