@@ -76,6 +76,33 @@ ipr = IPRoute()
 ipdb = IPDB(nl=ipr)
 sim = Simulation(ipdb)
 
+def trace_lines(frame, event, arg):
+    if event != 'line':
+        return
+    co = frame.f_code
+    func_name = co.co_name
+    line_no = frame.f_lineno
+    filename = co.co_filename
+    print '  %s line %s' % (func_name, line_no)
+
+def trace_calls(frame, event, arg):
+    if event != 'call':
+        return
+    co = frame.f_code
+    func_name = co.co_name
+    if func_name == 'write':
+        # Ignore write() calls from print statements
+        return
+    line_no = frame.f_lineno
+    filename = co.co_filename
+    print 'Call to %s on line %s of %s' % (func_name, line_no, filename)
+    if func_name in TRACE_INTO:
+        # Trace into this function
+        return trace_lines
+    return
+
+sys.settrace(trace_calls)
+
 class TestBPFSocket(TestCase):
     def set_default_const(self):
         self.ns1            = "ns1"
