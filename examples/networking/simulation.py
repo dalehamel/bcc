@@ -42,7 +42,7 @@ class Simulation(object):
                 nsp.wait(); nsp.release()
             try:
                 ns_ipdb.interfaces.lo.up().commit()
-            except CommitException:
+            except pyroute2.ipdb.exceptions.CommitException:
                 print("Warning, commit for lo failed, operstate may be unknown")
         if in_ifc:
             in_ifname = in_ifc.ifname
@@ -70,7 +70,7 @@ class Simulation(object):
         if out_ifc: out_ifc.up().commit()
         try:
             ns_ipdb.interfaces.lo.up().commit()
-        except CommitException:
+        except pyroute2.ipdb.exceptions.CommitException:
             print("Warning, commit for lo failed, operstate may be unknown")
         ns_ipdb.initdb()
         in_ifc = ns_ipdb.interfaces[in_ifname]
