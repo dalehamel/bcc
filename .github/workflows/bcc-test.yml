@@ -73,7 +73,8 @@ jobs:
                     -e CTEST_OUTPUT_ON_FAILURE=1 \
                     bcc-docker \
                     /bin/bash -c \
-                    'cd /bcc/build && make test ARGS=-V'"
+                    'cd /bcc/build && \
+                     make test PYTHON_TEST_LOGFILE=$PYTHON_TEST_LOGFILE ARGS=-V'"
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v1
