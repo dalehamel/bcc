@@ -87,7 +87,8 @@ jobs:
       with:
         name: critical-tests-${{ matrix.env['TYPE'] }}-${{ matrix.os }}
         path: tests/python/critical.log
-
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v1
 # To debug weird issues, you can add this step to be able to SSH to the test environment
 #     https://github.com/marketplace/actions/debugging-with-tmate
 #    - name: Setup tmate session
