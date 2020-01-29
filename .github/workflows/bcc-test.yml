@@ -75,6 +75,9 @@ jobs:
                     /bin/bash -c \
                     'cd /bcc/build && make test ARGS=-V'"
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v1
+
     - name: Check critical tests
       env: ${{ matrix.env }}
       run: |
