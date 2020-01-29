@@ -76,9 +76,6 @@ jobs:
                     'cd /bcc/build && \
                      make test PYTHON_TEST_LOGFILE=$PYTHON_TEST_LOGFILE ARGS=-V'"
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v1
-
     - name: Check critical tests
       env: ${{ matrix.env }}
       run: |
