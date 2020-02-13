@@ -55,15 +55,14 @@ Location::Location(uint64_t addr, const std::string &bin_path, const char *arg_f
 
 Probe::Probe(const char *bin_path, const char *provider, const char *name,
              uint64_t semaphore, const optional<int> &pid,
-             uint8_t mod_match_inode_only)
+             uint8_t mod_match_inode_only, bool ref_ctr_offset_supported)
     : bin_path_(bin_path),
       provider_(provider),
       name_(name),
       semaphore_(semaphore),
       pid_(pid),
-      mod_match_inode_only_(mod_match_inode_only) {
-  ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();
-}
+      mod_match_inode_only_(mod_match_inode_only),
+      ref_ctr_offset_supported_(ref_ctr_offset_supported) {}
 
 bool Probe::in_shared_object(const std::string &bin_path) {
     if (object_type_map_.find(bin_path) == object_type_map_.end()) {
@@ -94,6 +93,7 @@ bool Probe::add_to_semaphore(int16_t val) {
   }
 
   off_t address = static_cast<off_t>(attached_semaphore_.value());
+  printf("ref_ctr_off calculated as %016llX \n", address, sizeof(off_t));
 
   std::string procmem = tfm::format("/proc/%d/mem", pid_.value());
   int memfd = ::open(procmem.c_str(), O_RDWR);
@@ -263,10 +263,19 @@ void Context::add_probe(const char *binpath, const struct bcc_elf_usdt *probe) {
     }
   }
 
-  probes_.emplace_back(
-    new Probe(binpath, probe->provider, probe->name, probe->semaphore, pid_,
-              mod_match_inode_only_)
-  );
+  // If passing the ref_ctr_offset to perf_event_open downstream,
+  // the semaphore address will be matched relative to a memory area, not
+  // global. To achieve this, the address of the .probes section is subtracted
+  // from the address, so that only the file offset, and not vmaddr is used.
+  uint64_t semaphore_offset = probe->semaphore;
+  if (ref_ctr_offset_supported_) {
+    semaphore_offset -= probe_section_offset_;
+    printf("Ref counter offset supported, using it\n");
+  }
+
+  probes_.emplace_back(new Probe(binpath, probe->provider, probe->name,
+                                 semaphore_offset, pid_, mod_match_inode_only_,
+                                 ref_ctr_offset_supported_));
   probes_.back()->add_location(probe->pc, binpath, probe->arg_fmt);
 }
 
@@ -369,6 +378,10 @@ Context::Context(const std::string &bin_path, uint8_t mod_match_inode_only)
       loaded_ = true;
     }
   }
+  ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();
+  if (ref_ctr_offset_supported_)
+    probe_section_offset_ =
+        bcc_elf_usdt_probe_section_offset(full_path.c_str());
   for (const auto &probe : probes_)
     probe->finalize_locations();
 }
@@ -383,6 +396,10 @@ Context::Context(int pid, uint8_t mod_match_inode_only)
 
     loaded_ = true;
   }
+  ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();
+  if (ref_ctr_offset_supported_)
+    probe_section_offset_ =
+        bcc_elf_usdt_probe_section_offset(cmd_bin_path_.c_str());
   for (const auto &probe : probes_)
     probe->finalize_locations();
 }
@@ -401,6 +418,10 @@ Context::Context(int pid, const std::string &bin_path,
       loaded_ = true;
     }
   }
+  ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();
+  if (ref_ctr_offset_supported_)
+    probe_section_offset_ =
+        bcc_elf_usdt_probe_section_offset(full_path.c_str());
   for (const auto &probe : probes_)
     probe->finalize_locations();
 }

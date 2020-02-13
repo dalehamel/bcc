@@ -794,7 +794,7 @@ static int bpf_try_perf_event_open_with_probe(const char *name, uint64_t offs,
   // rather than seeking /proc/PID/mem in userspace
   if (ref_ctr_offset > 0) {
     attr.config |= ref_ctr_offset << PERF_UPROBE_REF_CTR_OFFSET_SHIFT;
-    printf("DEBUG before: %08X after: %08X\n", ref_ctr_offset, attr.config);
+    printf("DEBUG before: %16lx after: %16llx\n", ref_ctr_offset, attr.config);
   }
 
   /*
