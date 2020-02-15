@@ -61,8 +61,13 @@ Probe::Probe(const char *bin_path, const char *provider, const char *name,
       name_(name),
       semaphore_(semaphore),
       pid_(pid),
-      mod_match_inode_only_(mod_match_inode_only)
-      {ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();} // FIXME why isn't this being passed
+      mod_match_inode_only_(mod_match_inode_only){
+        ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();
+        if (ref_ctr_offset_supported_) {
+          uint64_t probe_sect_offs = bcc_elf_usdt_probe_section_offset(bin_path);
+          semaphore_ -= probe_sect_offs;
+        }
+      } // FIXME why isn't this being passed
 
 bool Probe::in_shared_object(const std::string &bin_path) {
     if (object_type_map_.find(bin_path) == object_type_map_.end()) {
