@@ -214,7 +214,7 @@ class Probe {
 public:
  Probe(const char *bin_path, const char *provider, const char *name,
        uint64_t semaphore, const optional<int> &pid,
-       uint8_t mod_match_inode_only = 1, bool ref_ctr_offset_supported = false);
+       uint8_t mod_match_inode_only = 1);
 
  size_t num_locations() const { return locations_.size(); }
  size_t num_arguments() const { return locations_.front().arguments_.size(); }

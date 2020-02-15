@@ -55,14 +55,14 @@ Location::Location(uint64_t addr, const std::string &bin_path, const char *arg_f
 
 Probe::Probe(const char *bin_path, const char *provider, const char *name,
              uint64_t semaphore, const optional<int> &pid,
-             uint8_t mod_match_inode_only, bool ref_ctr_offset_supported)
+             uint8_t mod_match_inode_only)
     : bin_path_(bin_path),
       provider_(provider),
       name_(name),
       semaphore_(semaphore),
       pid_(pid),
-      mod_match_inode_only_(mod_match_inode_only),
-      ref_ctr_offset_supported_(ref_ctr_offset_supported) {}
+      mod_match_inode_only_(mod_match_inode_only)
+      {ref_ctr_offset_supported_ = bcc_usdt_ref_ctr_offset_supported();} // FIXME why isn't this being passed
 
 bool Probe::in_shared_object(const std::string &bin_path) {
     if (object_type_map_.find(bin_path) == object_type_map_.end()) {
@@ -275,8 +275,7 @@ void Context::add_probe(const char *binpath, const struct bcc_elf_usdt *probe) {
   }
 
   probes_.emplace_back(new Probe(binpath, probe->provider, probe->name,
-                                 semaphore_offset, pid_, mod_match_inode_only_,
-                                 ref_ctr_offset_supported_));
+                                 semaphore_offset, pid_, mod_match_inode_only_));
   probes_.back()->add_location(probe->pc, binpath, probe->arg_fmt);
 }
 
