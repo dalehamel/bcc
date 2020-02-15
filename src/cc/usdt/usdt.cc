@@ -256,7 +256,6 @@ int Context::_each_module(mod_info *mod, int enter_ns, void *p) {
 }
 
 void Context::add_probe(const char *binpath, const struct bcc_elf_usdt *probe) {
-  printf("Adding probes for context\n");
   for (auto &p : probes_) {
     if (p->provider_ == probe->provider && p->name_ == probe->name) {
       p->add_location(probe->pc, binpath, probe->arg_fmt);
@@ -501,7 +500,6 @@ bool bcc_usdt_ref_ctr_offset_supported() {
   const char *ref_ctr_pmu_expected = "config:32-63\0";
   char ref_ctr_pmu_fmt[64];  // in Linux source this buffer is compared vs
                              // PAGE_SIZE, but 64 is probably ample
-  printf("Checking if ref ctr supported\n");
   int fd = open(ref_ctr_pmu_path, O_RDONLY);
   if (fd < 0)
     return false;
@@ -513,7 +511,6 @@ bool bcc_usdt_ref_ctr_offset_supported() {
   }
   if (strncmp(ref_ctr_pmu_expected, ref_ctr_pmu_fmt,
               strlen(ref_ctr_pmu_expected)) == 0) {
-    printf("Ref counter supported\n");
     return true;
   }
   return false;
