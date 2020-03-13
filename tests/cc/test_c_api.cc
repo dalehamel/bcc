@@ -38,6 +38,36 @@ using namespace std;
 
 static pid_t spawn_child(void *, bool, bool, int (*)(void *));
 
+class ChildProcess {
+  pid_t pid_;
+
+public:
+  ChildProcess(const char *name, char *const argv[]) {
+    pid_ = fork();
+    if (pid_ == 0) {
+      execvp(name, argv);
+      exit(0);
+    }
+    if (spawned()) {
+      usleep(250000);
+      if (kill(pid_, 0) < 0)
+        pid_ = -1;
+    }
+  }
+
+  ~ChildProcess() {
+    if (spawned()) {
+      int status;
+      kill(pid_, SIGKILL);
+      if (waitpid(pid_, &status, 0) != pid_)
+        abort();
+    }
+  }
+
+  bool spawned() const { return pid_ > 0; }
+  pid_t pid() const { return pid_; }
+};
+
 TEST_CASE("language detection", "[c_api]") {
   const char *c = bcc_procutils_language(getpid());
   REQUIRE(c);
@@ -90,14 +120,53 @@ TEST_CASE("file-backed mapping identification") {
   CHECK(bcc_mapping_is_file_backed("[heap]") == 0);
 }
 
-TEST_CASE("resolve symbol name in external library", "[c_api]") {
-  struct bcc_symbol sym;
 
-  REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, 0, nullptr, &sym) == 0);
-  REQUIRE(string(sym.module).find("libc.so") != string::npos);
-  REQUIRE(sym.module[0] == '/');
-  REQUIRE(sym.offset != 0);
-  bcc_procutils_free(sym.module);
+TEST_CASE("resolve symbol name in external library", "[c_api]") {
+
+  SECTION("in same namespace") {
+    struct bcc_symbol sym;
+
+    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, 0, nullptr, &sym) == 0);
+
+
+    REQUIRE(string(sym.module).find("libc.so") != string::npos);
+    REQUIRE(sym.module[0] == '/');
+    REQUIRE(sym.offset != 0);
+    bcc_procutils_free(sym.module);
+  }
+
+  SECTION("in separate mount namespace") {
+    static char _unshare[] = "unshare";
+    const char *const argv[4] = {_unshare, "--mount", "bash", NULL};
+
+    ChildProcess unshare(argv[0], (char **const)argv);
+    if (!unshare.spawned())
+      return;
+    int bash_pid = unshare.pid();
+
+    struct bcc_symbol sym;
+
+    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
+    REQUIRE(string(sym.module).find("libc.so") != string::npos);
+    REQUIRE(sym.module[0] == '/');
+    REQUIRE(sym.offset != 0);
+  }
+
+  SECTION("in separate mount namespace and separate PID namespace") {
+    static char _unshare[] = "unshare";
+    const char *const argv[8] = {_unshare,  "--fork", "--kill-child",
+                                 "--mount", "--pid",  "--mount-proc",
+                                 "bash",    NULL};
+
+    ChildProcess unshare(argv[0], (char **const)argv);
+    if (!unshare.spawned())
+      return;
+    int bash_pid = unshare.pid();
+    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
+    REQUIRE(string(sym.module).find("libc.so") != string::npos);
+    REQUIRE(sym.module[0] == '/');
+    REQUIRE(sym.offset != 0);
+  }
 }
 
 TEST_CASE("resolve symbol name in external library using loaded libraries", "[c_api]") {
