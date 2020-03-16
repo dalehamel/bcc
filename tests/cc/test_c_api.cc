@@ -147,7 +147,7 @@ TEST_CASE("resolve symbol name in external library", "[c_api]") {
     struct bcc_symbol sym;
 
     REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
-    REQUIRE(string(sym.module).find("libc.so") != string::npos);
+    REQUIRE(string(sym.module).find("libc") != string::npos);
     REQUIRE(sym.module[0] == '/');
     REQUIRE(sym.offset != 0);
   }
@@ -161,9 +161,11 @@ TEST_CASE("resolve symbol name in external library", "[c_api]") {
     ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
+
+    struct bcc_symbol sym;
     int bash_pid = unshare.pid();
     REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
-    REQUIRE(string(sym.module).find("libc.so") != string::npos);
+    REQUIRE(string(sym.module).find("libc") != string::npos);
     REQUIRE(sym.module[0] == '/');
     REQUIRE(sym.offset != 0);
   }
