@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <signal.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <stdint.h>
@@ -67,6 +69,23 @@ public:
   bool spawned() const { return pid_ > 0; }
   pid_t pid() const { return pid_; }
 };
+
+extern int cmd_scanf(const char *cmd, const char *fmt, ...);
+
+// Unsharing pid namespace requires forking
+// this uses pgrep to find the child process, by searching for a process
+// that has the unshare as its parent
+static int unshared_child_pid(const int ppid) {
+  int child_pid;
+  char cmd[512];
+  const char *cmdfmt = "pgrep -P %d";
+
+  sprintf(cmd, cmdfmt, ppid);
+  if (cmd_scanf(cmd, "%d", &child_pid) != 0) {
+    return -1;
+  }
+  return child_pid;
+}
 
 TEST_CASE("language detection", "[c_api]") {
   const char *c = bcc_procutils_language(getpid());
@@ -137,16 +156,16 @@ TEST_CASE("resolve symbol name in external library", "[c_api]") {
 
   SECTION("in separate mount namespace") {
     static char _unshare[] = "unshare";
-    const char *const argv[4] = {_unshare, "--mount", "bash", NULL};
+    const char *const argv[6] = {_unshare, "--mount", "tail", "-f", "/dev/null", NULL};
 
     ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
-    int bash_pid = unshare.pid();
+    int tail_pid = unshare.pid();
 
     struct bcc_symbol sym;
 
-    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
+    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, tail_pid, nullptr, &sym) == 0);
     REQUIRE(string(sym.module).find("libc") != string::npos);
     REQUIRE(sym.module[0] == '/');
     REQUIRE(sym.offset != 0);
@@ -154,17 +173,17 @@ TEST_CASE("resolve symbol name in external library", "[c_api]") {
 
   SECTION("in separate mount namespace and separate PID namespace") {
     static char _unshare[] = "unshare";
-    const char *const argv[8] = {_unshare,  "--fork", "--kill-child",
+    const char *const argv[10] = {_unshare,  "--fork", "--kill-child",
                                  "--mount", "--pid",  "--mount-proc",
-                                 "bash",    NULL};
+                                 "tail", "-f", "/dev/null", NULL};
 
     ChildProcess unshare(argv[0], (char **const)argv);
     if (!unshare.spawned())
       return;
 
     struct bcc_symbol sym;
-    int bash_pid = unshare.pid();
-    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, bash_pid, nullptr, &sym) == 0);
+    int tail_pid = unshared_child_pid(unshare.pid());
+    REQUIRE(bcc_resolve_symname("c", "malloc", 0x0, tail_pid, nullptr, &sym) == 0);
     REQUIRE(string(sym.module).find("libc") != string::npos);
     REQUIRE(sym.module[0] == '/');
     REQUIRE(sym.offset != 0);
@@ -267,7 +286,6 @@ static int mntns_func(void *arg) {
   return 0;
 }
 
-extern int cmd_scanf(const char *cmd, const char *fmt, ...);
 
 TEST_CASE("resolve symbol addresses for a given PID", "[c_api]") {
   struct bcc_symbol sym;
