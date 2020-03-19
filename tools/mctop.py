@@ -136,6 +136,10 @@ bpf_text = """
 #include <uapi/linux/ptrace.h>
 #include <bcc/proto.h>
 
+// FIXME this should ideally be 256, but has had to be reduced
+// due to the builtin_memcpy below, which would blow the stack immediately
+// as it needs a src and dst, and limit is 512
+// this seems to only be an issue on 4.14 kernel
 #define READ_MASK 115
 struct keyhit_t {
     char keystr[READ_MASK];
@@ -255,6 +259,7 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
 # A possible solution may be in flagging to the verifier that the size given
 # by a usdt argument is less than the buffer size,
 # see https://github.com/iovisor/bcc/issues/1260#issuecomment-406365168
+# FIXME This is only an issue and only needed on 4.14 kernel, 4.19 can delete this.
 def reconcile_keys(bpf_map):
   new_map = {}
 
