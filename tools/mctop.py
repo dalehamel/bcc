@@ -34,19 +34,17 @@ import json
 # FIXME refactor globals into class vars or explicit global singleton classes
 
 class McCommand(Enum):
-   START = 1
-   END = 2
-   GET = 3
-   ADD = 4
-   SET = 5
-   REPLACE = 6
-   PREPEND = 7
-   APPEND = 8
-   TOUCH = 9
-   CAS = 10
-   INRC = 11
-   DECR = 12
-   DELETE = 13
+   GET = 1
+   ADD = 2
+   SET = 3
+   REPLACE = 4
+   PREPEND = 5
+   APPEND = 6
+   TOUCH = 7
+   CAS = 8
+   INCR = 9
+   DECR = 10
+   DELETE = 11
 
 # FIXME better help
 # arguments
@@ -56,7 +54,8 @@ examples = """examples:
 
 supported_commands = [McCommand.GET, McCommand.ADD, McCommand.SET,
                       McCommand.REPLACE, McCommand.PREPEND,
-                      McCommand.APPEND, McCommand.TOUCH, McCommand.CAS]
+                      McCommand.APPEND, McCommand.TOUCH, McCommand.CAS,
+                      McCommand.INCR, McCommand.DECR, McCommand.DELETE]
 parser = argparse.ArgumentParser(
     description="Memcached top key analysis",
     formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -66,7 +65,7 @@ parser.add_argument(
     "-o",
     "--output",
     action="store",
-    help="save map data to /top/OUTPUT.json if 'D' is issued to dump the map")
+    help="save map data to /tmp/OUTPUT.json if 'W' is issued to dump the map")
 
 parser.add_argument("-C", "--noclear", action="store_true", # Implies --no-footer?
                     help="don't clear the screen")
@@ -179,8 +178,6 @@ int trace_command_end(struct pt_regs *ctx) {
 
     u64 *start = comm_start.lookup(&conn_id);
 
-    processed_commands.increment(lastkey_id);
-
     if (start != NULL) {
         u64 call_lat = nsec - *start;
         key_raw = lastkey.lookup(&lastkey_id);
@@ -189,9 +186,9 @@ int trace_command_end(struct pt_regs *ctx) {
 #ifdef BPF_PRINTK_DEBUG
           bpf_trace_printk("LAST KEY: %s\\n", key_raw->keystr);
 #endif
-
           valp = keyhits.lookup(&key);
           if (valp != NULL) {
+              processed_commands.increment(lastkey_id);
               valp->latency += call_lat;
           }
         }
@@ -224,8 +221,9 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
     }
 
     bpf_usdt_readarg(2, ctx, &keystr);
-    bpf_usdt_readarg(4, ctx, &bytecount);
 
+    if (COMMAND_ENUM_ID != MC_CMD_DELETE)
+        bpf_usdt_readarg(4, ctx, &bytecount);
 
     // see https://github.com/memcached/memcached/issues/576
     // ideally per https://github.com/iovisor/bcc/issues/1260 we should be able to
@@ -240,7 +238,6 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
 
     u64 lastkey_id = 0;
     lastkey.update(&lastkey_id, &keyhit);
-
     calls_traced.increment(lastkey_id);
 
     if (bytecount > 0) {
@@ -406,7 +403,6 @@ def dump_map():
     global selected_line
     global selected_page
 
-    print("DUMPING DATA")
     if outfile is not None:
         out = open('/tmp/%s.json' % outfile, 'w')
         json_str = json.dumps(sorted_output)
@@ -533,9 +529,9 @@ def print_keylist():
             break
 
     print((maxrows - printed_lines) * "\r\n")
-    calls_traced = bpf["calls_traced"].values()[0].value if len(bpf["calls_traced"].values()) > 0 else 0
-    processed_commands= bpf["processed_commands"].values()[0].value if len(bpf["processed_commands"].values()) > 0 else 0
-    print("[Selected key: %s | %d | %d]" % (selected_key, calls_traced, processed_commands) )
+    #calls_traced = bpf["calls_traced"].values()[0].value if len(bpf["calls_traced"].values()) > 0 else 0
+    #processed_commands= bpf["processed_commands"].values()[0].value if len(bpf["processed_commands"].values()) > 0 else 0
+    #print("[%d / %d]" % (calls_traced, processed_commands) )
     sys.stdout.write("[Curr: %s/%s Opt: %s:%s|%s:%s|%s:%s|%s:%s|%s:%s]" %
                      (sort_mode,
                       "Asc" if sort_ascending else "Dsc",

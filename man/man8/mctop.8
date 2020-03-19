@@ -40,20 +40,17 @@ Save map data to a file when the DUMP command is issued:
 .B mctop -p MEMCACHED_PID -o FILENAME
 .SH COMMANDS
 .TP
-c/C
+C
 Sort by count of calls to the key.
 .TP
-s/S
+S
 Sort by last reported size of data associated with this key.
 .TP
-r/R
+R
 Sort by realtime rate of calls to this key.
 .TP
-b/B
+B
 Sort by realtime bandwidth computed for this key.
-.TP
-n/N
-Sort by most recently accessed key.
 .TP
 t/T
 Toggle between ascending and descending sort.
@@ -99,8 +96,8 @@ The realtime rate of hits to the key.
 BW(kbps)
 The total amount of data transacted on the key, as a realtime rate, in kbps.
 .TP
-TOTAL
-The total amount of data transacted on the key. // FIXME Units?
+LAT(ms)
+The average latency in ms to access the key.
 .SH OVERHEAD
 This tool utilizes existing support for USDT probes in memcached, and the
 overhead of this tool is highly dependant on the memcached usage pattern. This
