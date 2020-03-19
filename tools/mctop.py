@@ -4,8 +4,8 @@
 # mctop   Memcached key operation analysis tool
 #         For Linux, uses BCC, eBPF.
 #
-# USAGE: mctop.py  -p PID 1759439 | 2134654]
-#Curr: C/Asc Opt: C:calls|S:size|R:req/s|B:bw|L:lat][T:tgl W:dmp Q:quit](17/17)
+# USAGE: mctop.py  -p PID
+#
 # This uses in-kernel eBPF maps to trace and analyze key access rates and
 # objects. This can help to spot hot keys, and tune memcached usage for
 # performance.
@@ -186,9 +186,12 @@ int trace_command_end(struct pt_regs *ctx) {
         key_raw = lastkey.lookup(&lastkey_id);
         if (key_raw != NULL ) {
           __builtin_memcpy(&key.keystr, key_raw->keystr, sizeof(key.keystr));
+#ifdef BPF_PRINTK_DEBUG
+          bpf_trace_printk("LAST KEY: %s\\n", key_raw->keystr);
+#endif
 
           valp = keyhits.lookup(&key);
-          if (valp) {
+          if (valp != NULL) {
               valp->latency += call_lat;
           }
         }
@@ -223,13 +226,6 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
     bpf_usdt_readarg(2, ctx, &keystr);
     bpf_usdt_readarg(4, ctx, &bytecount);
 
-    u64 lastkey_id = 0;
-    lastkey.update(&lastkey_id, &keyhit);
-
-#ifdef BPF_PRINTK_DEBUG
-    bpf_trace_printk("COMMAND: %s\\n", command_type_str);
-    bpf_trace_printk("KEY: '%s' KEYSIZE: %d BYTES %d\\n", keyhit.keystr, keysize, bytecount);
-#endif // BPF_PRINTK_DEBUG
 
     // see https://github.com/memcached/memcached/issues/576
     // ideally per https://github.com/iovisor/bcc/issues/1260 we should be able to
@@ -241,6 +237,9 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
     valp->count++;
     valp->keysize = keysize;
     valp->timestamp = bpf_ktime_get_ns();
+
+    u64 lastkey_id = 0;
+    lastkey.update(&lastkey_id, &keyhit);
 
     calls_traced.increment(lastkey_id);
 
@@ -312,7 +311,7 @@ def update_selected_key():
     global selected_key
     global selected_line
 
-    if len(sorted_output) > 0 and len(sorted_output[selected_line]) > 0:
+    if len(sorted_output) > 0 and selected_line < len(sorted_output) and len(sorted_output[selected_line]) > 0:
         selected_key = sorted_output[selected_line][0]
 
 def change_selected_line(direction):
