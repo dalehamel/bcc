@@ -1,10 +1,10 @@
 #!/usr/bin/python
 # @lint-avoid-python-3-compatibility-imports
 #
-# mctop   Memcached key operation analysis tool
+# mctop   Memcached top key operation analysis tool
 #         For Linux, uses BCC, eBPF.
 #
-# USAGE: mctop.py  -p PID
+# USAGE: mctop.py -p MEMCACHED_PID # FIXME update usage per help
 #
 # This uses in-kernel eBPF maps to trace and analyze key access rates and
 # objects. This can help to spot hot keys, and tune memcached usage for
@@ -14,9 +14,11 @@
 # Licensed under the Apache License, Version 2.0 (the "License")
 #
 # 20-Nov-2019   Dale Hamel   Created this.
-# Inspired by the ruby tool of the same name by Marcus Barczak in 2012, see
+# Inspired by the Ruby tool of the same name by Marcus Barczak in 2012, see
 # see also https://github.com/etsy/mctop
 # see also https://github.com/tumblr/memkeys
+
+# FIXME pep8 this whole script, clang_fmt the C code
 
 from __future__ import print_function
 from time import sleep, strftime, monotonic
@@ -56,18 +58,19 @@ supported_commands = [McCommand.GET, McCommand.ADD, McCommand.SET,
                       McCommand.REPLACE, McCommand.PREPEND,
                       McCommand.APPEND, McCommand.TOUCH, McCommand.CAS,
                       McCommand.INCR, McCommand.DECR, McCommand.DELETE]
+
 parser = argparse.ArgumentParser(
     description="Memcached top key analysis",
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog=examples)
-parser.add_argument("-p", "--pid", type=int, help="process id to attach to")
+parser.add_argument("-p", "--pid", type=int, required=True, help="process id to attach to")
 parser.add_argument(
     "-o",
     "--output",
     action="store",
     help="save map data to /tmp/OUTPUT.json if 'W' is issued to dump the map")
 
-parser.add_argument("-C", "--noclear", action="store_true", # Implies --no-footer?
+parser.add_argument("-C", "--noclear", action="store_true", # FIXME should be a different view mode, implies no footer, and "streams output" like other top tools
                     help="don't clear the screen")
 parser.add_argument("-r", "--maxrows", default=20,
                     help="maximum rows to print, default 20")
@@ -81,7 +84,7 @@ parser.add_argument("count", nargs="?", default=99999999,
 parser.add_argument("--ebpf", action="store_true",
                     help=argparse.SUPPRESS)
 parser.add_argument("--debug", action="store_true",
-                    help="Enable printk debugging for eBPF probes")
+                    help="Enable printk debugging for eBPF probes") # FIXME set debug=8 to bpf constructor too
 
 
 # FIXME clean this up
@@ -90,6 +93,8 @@ traced_commands = args.commands
 if len(traced_commands) == 0:
     traced_commands=[cmd.name for cmd in supported_commands]
 
+# FIXME do away with these globals, ever storing in a config class and making
+# that global would be an improvement
 interval = int(args.interval)
 countdown = int(args.count)
 maxrows = int(args.maxrows)
@@ -104,11 +109,13 @@ selected_line = 0
 selected_page = 0
 selected_key  = ""
 start_time    = 0
+paused = False
 sort_ascending = True
 view_mode = 1 # 1 - index
 match_key = None
 bpf = None
 sorted_output = []
+keyhits = None
 
 SELECTED_LINE_UP = 1
 SELECTED_LINE_DOWN = -1
@@ -120,12 +127,13 @@ SELECTED_LINE_END = "end"
 sort_modes = {
     "C": "calls", # total calls to key
     "S": "size",  # latest size of key
-    "R": "req/s", # requests per second to this key
+    "R": "rate",  # requests per second to this key
     "B": "bw",    # total bytes accesses on this key
     "L": "lat"    # aggregate call latency for this key
 }
 
 commands = {
+    "P": "pause",# pause output refreshing
     "T": "tgl",  # toggle sorting by ascending / descending order
     "W": "dmp",  # clear eBPF maps and dump to disk (if set)
     "Q": "quit"  # exit mctop
@@ -154,37 +162,46 @@ struct value_t {
     u64 latency;
 };
 
+struct conn_t {
+    int32_t conn_id;
+    u64 thread_id;
+};
+
 DEFINE_BPF_PRINTK_DEBUG
 DEFINE_MC_COMMAND_ENUM
 
 BPF_HASH(keyhits, struct keyhit_t, struct value_t);
-BPF_HASH(comm_start, int32_t, u64);
-BPF_HASH(lastkey, u64, struct keyhit_t);
-BPF_HASH(calls_traced, u64, u64);
+BPF_HASH(comm_start, struct conn_t, u64);
+BPF_HASH(lastkey, struct conn_t, struct keyhit_t);
+BPF_HASH(calls_traced, u64, u64); // FIXME this and processed_commands don't always match, why?
 BPF_HASH(processed_commands, u64, u64);
 
 int trace_command_start(struct pt_regs *ctx) {
-    int32_t conn_id = 0;
-    bpf_usdt_readarg(1, ctx, &conn_id);
+    struct conn_t conn = {};
+
+    conn.thread_id = bpf_get_current_pid_tgid() >> 32;
+    bpf_usdt_readarg(1, ctx, &conn.conn_id);
     u64 nsec = bpf_ktime_get_ns();
-    comm_start.update(&conn_id, &nsec);
+    comm_start.update(&conn, &nsec);
     return 0;
 }
 
 int trace_command_end(struct pt_regs *ctx) {
+    struct conn_t conn = {};
     struct keyhit_t key = {};
     struct keyhit_t *key_raw;
     struct value_t *valp;
-    int32_t conn_id = 0;
-    u64 lastkey_id = 0;
-    u64 nsec = bpf_ktime_get_ns();
-    bpf_usdt_readarg(1, ctx, &conn_id);
+    u64 zeroidx = 0;
 
-    u64 *start = comm_start.lookup(&conn_id);
+    u64 nsec = bpf_ktime_get_ns();
+    conn.thread_id = bpf_get_current_pid_tgid() >> 32;
+    bpf_usdt_readarg(1, ctx, &conn.conn_id);
+
+    u64 *start = comm_start.lookup(&conn);
 
     if (start != NULL) {
         u64 call_lat = nsec - *start;
-        key_raw = lastkey.lookup(&lastkey_id);
+        key_raw = lastkey.lookup(&conn);
         if (key_raw != NULL ) {
           __builtin_memcpy(&key.keystr, key_raw->keystr, sizeof(key.keystr));
 #ifdef BPF_PRINTK_DEBUG
@@ -192,7 +209,8 @@ int trace_command_end(struct pt_regs *ctx) {
 #endif
           valp = keyhits.lookup(&key);
           if (valp != NULL) {
-              processed_commands.increment(lastkey_id);
+              processed_commands.increment(zeroidx);
+              lastkey.delete(&conn);
               valp->latency += call_lat;
           }
         }
@@ -203,11 +221,18 @@ int trace_command_end(struct pt_regs *ctx) {
 
 trace_command_ebpf = """
 int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
+    struct keyhit_t keyhit = {0};
+    char command_type_str[] = "COMMAND_NAME\\0";
     u64 keystr = 0;
+    u64 zeroidx = 0;
     int32_t bytecount = 0; // type is -4@%eax in stap notes, which is int32
     uint8_t keysize = 0; // type is 1@%cl, which should be uint8
-    struct keyhit_t keyhit = {0};
+    // FIXME get thread ID
     struct value_t *valp, zero = {};
+    struct conn_t conn = {};
+
+    conn.thread_id = bpf_get_current_pid_tgid() >> 32;
+    bpf_usdt_readarg(1, ctx, &conn.conn_id);
 
     // GET and TOUCH selected because they sometimes use 64 bit int for keysize
     if ((COMMAND_ENUM_ID == MC_CMD_GET) ||
@@ -240,14 +265,22 @@ int trace_command_COMMAND_NAME(struct pt_regs *ctx) {
     valp->keysize = keysize;
     valp->timestamp = bpf_ktime_get_ns();
 
-    u64 lastkey_id = 0;
-    lastkey.update(&lastkey_id, &keyhit);
-    calls_traced.increment(lastkey_id);
+    lastkey.update(&conn, &keyhit);
+    calls_traced.increment(zeroidx);
 
     if (bytecount > 0) {
         valp->bytecount = bytecount;
         valp->totalbytes += bytecount;
     }
+
+#ifdef BPF_PRINTK_DEBUG
+    bpf_trace_printk("COMMAND: %s\\n", command_type_str);
+    bpf_trace_printk("KEY: '%s' KEYSIZE: %d BYTES %d\\n", keyhit.keystr, keysize, bytecount);
+    u64 *traced = calls_traced.lookup(&zeroidx);
+    u64 *processed = processed_commands.lookup(&zeroidx);
+    if(traced != NULL && processed != NULL)
+        bpf_trace_printk("Calls: %llu  / Processed: %llu \\n", *traced, *processed);
+#endif // BPF_PRINTK_DEBUG
 
     return 0;
 }
@@ -307,8 +340,6 @@ def sort_output(unsorted_map):
 
     return list(output)
 
-# Set stdin to non-blocking reads so we can poll for chars
-
 def update_selected_key():
     global selected_key
     global selected_line
@@ -349,11 +380,14 @@ def change_selected_line(direction):
 
 def readKey(interval):
     fd = sys.stdin.fileno()
+    # back up terminal settings
     old_settings = termios.tcgetattr(fd)
     try:
+        # Disable echo and set other terminal settings
         tty.setcbreak(sys.stdin.fileno())
         new_settings = termios.tcgetattr(fd)
         new_settings[3] = new_settings[3] & ~(termios.ECHO | termios.ICANON)
+        # Select on stdin waiting for input in between polling intervals
         if select.select([sys.stdin], [], [], interval) == ([sys.stdin], [], []):
             key = sys.stdin.read(1)
             global sort_mode
@@ -371,6 +405,9 @@ def readKey(interval):
                 sort_mode = 'B'
             elif key == 'L':
                 sort_mode = 'L'
+            elif key.lower() == 'p':
+                global paused
+                paused = not paused
             elif key.lower() == 'j':
                 change_selected_line(SELECTED_LINE_UP)
             elif key.lower() == 'k':
@@ -396,6 +433,8 @@ def readKey(interval):
                 global exiting
                 exiting = 1
     finally:
+        # FIXME I can still see keys entered between refreshes, maybe only reload
+        # terminal settings before exit so that characters don't echo?
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
@@ -456,7 +495,7 @@ def build_probes(render_only):
                                             fn_name="trace_command_start")
     usdt.enable_probe(probe="process__command__end",
                                             fn_name="trace_command_end")
-    bpf = BPF(text=rendered_text, usdt_contexts=[usdt])
+    bpf = BPF(text=rendered_text, usdt_contexts=[usdt]) # FIXME set debug=8 here if debug
     start_time = bpf.monotonic_time()
     return bpf
 
@@ -480,13 +519,19 @@ def print_keylist():
     global sorted_output
     global start_time
     global selected_key
+    global paused
+    global keyhits
 
     # FIXME better calculate the key width so that it can be shifted with h/l
     print("%-30s %8s %8s %8s %8s %8s" % ("MEMCACHED KEY", "CALLS",
                                          "OBJSIZE", "REQ/S",
                                          "BW(kbps)", "LAT(MS)"))
-    keyhits_raw = bpf.get_table("keyhits") # Workaround for older kernels
-    keyhits = reconcile_keys(keyhits_raw)
+
+    if(keyhits == None or not paused):
+        # FIXME if(kernel_version) this for 4.14, test against 4.19
+        keyhits_raw = bpf.get_table("keyhits") # Workaround for older kernels
+        keyhits = reconcile_keys(keyhits_raw)
+
     interval = (bpf.monotonic_time() - start_time) / 1000000000
 
     data_map = {}
@@ -534,10 +579,7 @@ def print_keylist():
             break
 
     print((maxrows - printed_lines) * "\r\n")
-    #calls_traced = bpf["calls_traced"].values()[0].value if len(bpf["calls_traced"].values()) > 0 else 0
-    #processed_commands= bpf["processed_commands"].values()[0].value if len(bpf["processed_commands"].values()) > 0 else 0
-    #print("[%d / %d]" % (calls_traced, processed_commands) )
-    sys.stdout.write("[Curr: %s/%s Opt: %s:%s|%s:%s|%s:%s|%s:%s|%s:%s]" %
+    sys.stdout.write("[%s/%s Opt: %s:%s|%s:%s|%s:%s|%s:%s|%s:%s]" %
                      (sort_mode,
                       "Asc" if sort_ascending else "Dsc",
                       'C', sort_modes['C'],
@@ -547,7 +589,8 @@ def print_keylist():
                       'L', sort_modes['L']
                       ))
 
-    sys.stdout.write("[%s:%s %s:%s %s:%s](%d/%d)" % (
+    sys.stdout.write("[%s:%s %s:%s %s:%s %s:%s](%d/%d)" % (
+        'P', commands['P'],
         'T', commands['T'],
         'W', commands['W'],
         'Q', commands['Q'],
@@ -570,7 +613,7 @@ def run():
 
     while True:
         try:
-            if not first_loop:
+            if not first_loop: # FIXME better emulate do while loop in python
                 readKey(interval)
             else:
                 first_loop = False
