@@ -73,7 +73,7 @@ packages use `bcc` in the name (e.g. `bcc-tools`), Ubuntu packages use `bpfcc` (
 Currently, BCC packages for both the Ubuntu Universe, and the iovisor builds are outdated. This is a known and tracked in:
 - [Universe - Ubuntu Launchpad](https://bugs.launchpad.net/ubuntu/+source/bpfcc/+bug/1848137)
 - [iovisor - BCC GitHub Issues](https://github.com/iovisor/bcc/issues/2678)
-Currently, [building from source](#ubuntu---source) is currently the only way to get up to date packaged version of bcc.
+Currently, [building from source](#ubuntu---source)
 
 **Ubuntu Packages**
 Source packages and the binary packages produced from them can be
@@ -95,6 +95,59 @@ used to satisfy dependencies. For example, should one attempt to install package
 which declares a dependency on `libbpfcc` while the upstream `libbcc` package is installed,
 `foo` should install without trouble as `libbcc` declares that it provides `libbpfcc`.
 That said, one should always test such a configuration in case of version incompatibilities.
+
+### CI artifacts
+
+The Github Actions CI workflow automatically publishes several CI artifacts.
+
+These provide more up-to-date versions of the packages, but are not a substitute
+for signed packages. They may be necessary to use newer features of bcc than
+may be available from an OS vendor.
+
+**Debian Archives**
+
+These can be used to obtain builds for specific tagged releases, as well as
+for arbitrary branch builds. These can be downloaded directly from the Github
+Actions artifacts for the specified build, since this capability was added.
+
+Packages are currently only built for ubuntu in CI, but Debian could be supported
+if the packages aren't compatible already.
+
+**Docker images**
+
+Branches and tag updates to the iovisor/bcc repo should automatically result in
+a docker image pushed to quay.io, with various tags applied.
+
+For convenience, you can use the following snippet to pull bcc directly into
+docker images. For example, for an ubuntu 20.04 docker image:
+
+```
+FROM quay.io/iovisor/bcc:v0.16.0-focal-release as bcc
+
+...
+
+FROM ubuntu:20.04
+....
+
+# Install bcc by copying apt packages from docker image
+COPY --from=bcc /root/bcc /tmp/bcc
+RUN \
+  apt-get update -y && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 binutils libelf1 kmod && \
+  dpkg -i /tmp/bcc/*.deb && rm -rf /tmp/bcc
+```
+
+Or, you can copy the apt packages directly out of docker, to the current directory with:
+
+```
+docker run --rm -v $(pwd):/output quay.io/iovisor/bcc:v0.16.0-focal-release /bin/bash -c "cp /root/bcc/* /output"
+```
+
+### Outdated Official repo
+
+There is no support for ubuntu 20.04, and the latest version is currently
+several releases out of date, but are still available for ubuntu bionic, up to
+bcc v0.11.0.
 
 **iovisor packages (Upstream Stable and Signed Packages)**
 
